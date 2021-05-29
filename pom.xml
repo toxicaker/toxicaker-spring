@@ -27,6 +27,11 @@
       <artifactId>slf4j-log4j12</artifactId>
       <version>1.7.5</version>
     </dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>23.0</version>
+    </dependency>
   </dependencies>
 
   <build>
@@ -36,7 +41,7 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.8.0</version>
         <configuration>
-          <release>14</release>
+          <release>11</release>
         </configuration>
       </plugin>
     </plugins>

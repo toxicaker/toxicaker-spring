@@ -1,5 +1,6 @@
 package com.toxicaker.core;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.toxicaker.core.Component.Type;
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
@@ -49,7 +50,7 @@ public class ApplicationContext {
       if (beanDefinition.getType() == Type.PROTOTYPE) {
         return createBean(beanDefinition);
       } else {
-        return beanDefinitionPool.get(name);
+        return objectPool.get(name);
       }
     }
     throw new ClassNotFoundException("Bean " + name + " not found");
@@ -87,61 +88,65 @@ public class ApplicationContext {
    * If appConfig == null. The function will scan all Java files by default and assume there is no
    * bean definition.
    */
-  private void scan(Class<?> appConfig) throws Exception {
+  @VisibleForTesting
+  void scan(Class<?> appConfig) throws Exception {
     var scanPath = "";
     if (appConfig != null) {
       // read files
       var scanAnnotation = appConfig.getAnnotation(ComponentScan.class);
       scanPath = scanAnnotation == null ? "" : scanAnnotation.value();
-      var classLoader = Thread.currentThread().getContextClassLoader();
-      URL url;
       if ("".equals(scanPath)) {
         scanPath = ROOT_PACKAGE;
-        url = classLoader.getResource(ROOT_PACKAGE);
-      } else {
-        url = classLoader.getResource(scanPath);
       }
-      if (url == null) {
-        throw new IllegalStateException("Package " + scanPath + " doesn't exist");
-      }
-      var file = new File(url.getPath());
-      // result format: List<String>: ["com.toxicaker.abc.UserService", "com.toxicaker.def.AuthService"]
-      var javaPaths = listFiles(file).stream().filter(f -> {
-        var paths = f.getAbsolutePath().split("\\.");
-        var ext = paths[paths.length - 1];
-        return "class".equals(ext);
-      }).map(f -> {
-        var path = f.getAbsolutePath();
-        return path.substring(path.indexOf(ROOT_PACKAGE), path.indexOf(".class"))
-            .replaceAll("/", "\\.");
-      }).collect(Collectors.toList());
+    } else {
+      scanPath = ROOT_PACKAGE;
+    }
+    var classLoader = Thread.currentThread().getContextClassLoader();
+    URL url;
+    scanPath = scanPath.replaceAll("\\.", "/");
+    url = classLoader.getResource(scanPath);
+    if (url == null) {
+      throw new IllegalStateException("Package " + scanPath + " doesn't exist");
+    }
+    var file = new File(url.getPath());
+    // result format: List<String>: ["com.toxicaker.abc.UserService", "com.toxicaker.def.AuthService"]
+    var javaPaths = listFiles(file).stream().filter(f -> {
+      var paths = f.getAbsolutePath().split("\\.");
+      var ext = paths[paths.length - 1];
+      return "class".equals(ext);
+    }).map(f -> {
+      var path = f.getAbsolutePath();
+      var root = ROOT_PACKAGE.replaceAll("\\.", "/");
+      return path.substring(path.indexOf(root), path.indexOf(".class"))
+          .replaceAll("/", "\\.");
+    }).collect(Collectors.toList());
 
-      // load beans
-      for (var classPath : javaPaths) {
-        try {
-          var clazz = classLoader.loadClass(classPath);
-          var componentAnnotation = clazz.getAnnotation(Component.class);
-          if (componentAnnotation != null) {
-            var beanName = "".equals(componentAnnotation.name()) ? clazz.getName()
-                : componentAnnotation.name();
-            var beanType = componentAnnotation.type();
-            if (beanDefinitionPool.containsKey(beanName)) {
-              throw new IllegalStateException("Duplicate bean name " + beanName);
-            }
-            beanDefinitionPool.put(beanName, new BeanDefinition(clazz, beanName, beanType));
+    // load beans
+    for (var classPath : javaPaths) {
+      try {
+        var clazz = classLoader.loadClass(classPath);
+        var componentAnnotation = clazz.getAnnotation(Component.class);
+        if (componentAnnotation != null) {
+          var beanName = "".equals(componentAnnotation.name()) ? clazz.getName()
+              : componentAnnotation.name();
+          var beanType = componentAnnotation.type();
+          if (beanDefinitionPool.containsKey(beanName)) {
+            throw new IllegalStateException("Duplicate bean name " + beanName);
           }
-        } catch (ClassNotFoundException e) {
-          logger.warn("Class {} not found", classPath, e);
+          beanDefinitionPool.put(beanName, new BeanDefinition(clazz, beanName, beanType));
         }
+      } catch (ClassNotFoundException e) {
+        logger.warn("Class {} not found", classPath, e);
       }
-      for (var name : beanDefinitionPool.keySet()) {
-        var beanDefinition = beanDefinitionPool.get(name);
-        objectPool.put(name, createBean(beanDefinition));
-      }
+    }
+    for (var name : beanDefinitionPool.keySet()) {
+      var beanDefinition = beanDefinitionPool.get(name);
+      objectPool.put(name, createBean(beanDefinition));
     }
   }
 
-  private Object createBean(BeanDefinition beanDefinition) throws Exception {
+  @VisibleForTesting
+  Object createBean(BeanDefinition beanDefinition) throws Exception {
     var clazz = beanDefinition.getClazz();
     try {
       return clazz.getDeclaredConstructor().newInstance();
@@ -151,7 +156,8 @@ public class ApplicationContext {
     }
   }
 
-  private List<File> listFiles(File file) {
+  @VisibleForTesting
+  List<File> listFiles(File file) {
     if (file == null) {
       return new ArrayList<>();
     }
