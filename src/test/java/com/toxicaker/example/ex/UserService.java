@@ -1,4 +1,4 @@
-package com.toxicaker.example;
+package com.toxicaker.example.ex;
 
 public interface UserService {
 

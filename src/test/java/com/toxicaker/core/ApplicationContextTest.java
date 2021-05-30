@@ -1,8 +1,9 @@
 package com.toxicaker.core;
 
-import com.toxicaker.example.DbService;
-import com.toxicaker.example.UserService;
-import com.toxicaker.example.UserServiceImpl;
+import com.toxicaker.example.ex.AuthService;
+import com.toxicaker.example.ex.DbService;
+import com.toxicaker.example.ex.UserService;
+import com.toxicaker.example.ex.UserServiceImpl;
 import com.toxicaker.example.di.positive.A;
 import com.toxicaker.example.di.positive.B;
 import com.toxicaker.example.di.positive.C;
@@ -39,7 +40,7 @@ public class ApplicationContextTest {
     var url = classLoader.getResource("com/toxicaker/unittest");
     Assert.assertNotNull(url);
 
-    var applicationContext = new ApplicationContext();
+    var applicationContext = new ApplicationContext(true);
     var file = new File(url.getPath());
     var files = applicationContext.listFiles(file);
     Assert.assertEquals(3, files.size());
@@ -55,7 +56,7 @@ public class ApplicationContextTest {
 
   @Test
   public void testListFilesShouldReturnEmptyListWhenParamIsNull() throws Exception {
-    var applicationContext = new ApplicationContext();
+    var applicationContext = new ApplicationContext(true);
     var files = applicationContext.listFiles(null);
     Assert.assertEquals(0, files.size());
   }
@@ -65,46 +66,30 @@ public class ApplicationContextTest {
     var applicationContext = new ApplicationContext(MyAppConfig.class);
     var pool = applicationContext.getObjectPool();
     Assert.assertEquals(2, pool.size());
-    Assert.assertNotNull(pool.get("com.toxicaker.example.DbService"));
-    Assert.assertNotNull(pool.get("com.toxicaker.example.UserServiceImpl"));
+    Assert.assertNotNull(pool.get("com.toxicaker.example.ex.DbService"));
+    Assert.assertNotNull(pool.get("com.toxicaker.example.ex.UserServiceImpl"));
     Assert.assertEquals(DbService.class,
-        pool.get("com.toxicaker.example.DbService").getClass());
+        pool.get("com.toxicaker.example.ex.DbService").getClass());
     Assert.assertEquals(UserServiceImpl.class,
-        pool.get("com.toxicaker.example.UserServiceImpl").getClass());
-  }
-
-  @Test
-  public void testScanWithoutAppConfigShouldInitBeanPools() throws Exception {
-    var applicationContext = new ApplicationContext();
-    var pool = applicationContext.getObjectPool();
-    Assert.assertEquals(3, pool.size());
-    Assert.assertNotNull(pool.get("com.toxicaker.example.DbService"));
-    Assert.assertNotNull(pool.get("com.toxicaker.example.UserServiceImpl"));
-    Assert.assertNotNull(pool.get("com.toxicaker.unittest.TestFile"));
-    Assert.assertEquals(DbService.class,
-        pool.get("com.toxicaker.example.DbService").getClass());
-    Assert.assertEquals(UserServiceImpl.class,
-        pool.get("com.toxicaker.example.UserServiceImpl").getClass());
-    Assert.assertEquals(TestFile.class,
-        pool.get("com.toxicaker.unittest.TestFile").getClass());
+        pool.get("com.toxicaker.example.ex.UserServiceImpl").getClass());
   }
 
   @Test
   public void testGetBeanCanGetInterfaceType() throws Exception {
-    var applicationContext = new ApplicationContext();
+    var applicationContext = new ApplicationContext(MyAppConfig.class);
     var bean = applicationContext
-        .getBean("com.toxicaker.example.UserServiceImpl", UserService.class);
+        .getBean("com.toxicaker.example.ex.UserServiceImpl", UserService.class);
     Assert.assertNotNull(bean);
     Assert.assertTrue(UserService.class.isAssignableFrom(bean.getClass()));
   }
 
   @Test
   public void testGetBeanShouldCreateNewObjectIfTypeIsProtoType() throws Exception {
-    var applicationContext = new ApplicationContext();
+    var applicationContext = new ApplicationContext(MyAppConfig.class);
     var bean1 = applicationContext
-        .getBean("com.toxicaker.example.DbService");
+        .getBean("com.toxicaker.example.ex.DbService");
     var bean2 = applicationContext
-        .getBean("com.toxicaker.example.DbService");
+        .getBean("com.toxicaker.example.ex.DbService");
     Assert.assertNotNull(bean1);
     Assert.assertNotNull(bean2);
     Assert.assertNotEquals(bean1, bean2);
@@ -112,11 +97,11 @@ public class ApplicationContextTest {
 
   @Test
   public void testGetBeanShouldNotCreateNewObjectIfTypeIsSingleton() throws Exception {
-    var applicationContext = new ApplicationContext();
+    var applicationContext = new ApplicationContext(MyAppConfig.class);
     var bean1 = applicationContext
-        .getBean("com.toxicaker.example.UserServiceImpl");
+        .getBean("com.toxicaker.example.ex.UserServiceImpl");
     var bean2 = applicationContext
-        .getBean("com.toxicaker.example.UserServiceImpl");
+        .getBean("com.toxicaker.example.ex.UserServiceImpl");
     Assert.assertNotNull(bean1);
     Assert.assertNotNull(bean2);
     Assert.assertEquals(bean1, bean2);
@@ -125,7 +110,7 @@ public class ApplicationContextTest {
   @Test
   public void testCheckCircularReferencePositiveTest1() throws Exception {
     Map<String, Set<String>> graph = Map.of("A", new HashSet<>());
-    var applicationContext = new ApplicationContext();
+    var applicationContext = new ApplicationContext(DIPositiveConfig.class);
     applicationContext.checkCircularReference(graph);
   }
 
@@ -135,7 +120,7 @@ public class ApplicationContextTest {
         .of("A", Set.of("B", "C"), "B", Set.of("D", "E"), "C", new HashSet<>(), "D",
             new HashSet<>(),
             "E", new HashSet<>());
-    var applicationContext = new ApplicationContext();
+    var applicationContext = new ApplicationContext(DIPositiveConfig.class);
     applicationContext.checkCircularReference(graph);
   }
 
@@ -145,7 +130,7 @@ public class ApplicationContextTest {
         .of("A", Set.of("B", "C"), "B", Set.of("D", "E"), "C", new HashSet<>(), "D",
             new HashSet<>(),
             "E", Set.of("C", "D"));
-    var applicationContext = new ApplicationContext();
+    var applicationContext = new ApplicationContext(DIPositiveConfig.class);
     applicationContext.checkCircularReference(graph);
   }
 
@@ -155,7 +140,7 @@ public class ApplicationContextTest {
         .of("A", Set.of("B", "C"), "B", Set.of("D", "E"), "C", new HashSet<>(), "D",
             new HashSet<>(),
             "E", Set.of("C", "D"), "F", Set.of("G"), "G", new HashSet<>());
-    var applicationContext = new ApplicationContext();
+    var applicationContext = new ApplicationContext(DIPositiveConfig.class);
     applicationContext.checkCircularReference(graph);
   }
 
@@ -164,14 +149,14 @@ public class ApplicationContextTest {
     Map<String, Set<String>> graph = Map
         .of("A", Set.of("B", "C"), "B", Set.of("D", "E"), "C", new HashSet<>(), "D", Set.of("A"),
             "E", new HashSet<>());
-    var applicationContext = new ApplicationContext();
+    var applicationContext = new ApplicationContext(DIPositiveConfig.class);
     applicationContext.checkCircularReference(graph);
   }
 
   @Test(expected = IllegalStateException.class)
   public void testCheckCircularReferenceNegativeTest2() throws Exception {
     Map<String, Set<String>> graph = Map.of("A", Set.of("A"));
-    var applicationContext = new ApplicationContext();
+    var applicationContext = new ApplicationContext(DIPositiveConfig.class);
     applicationContext.checkCircularReference(graph);
   }
 
@@ -180,7 +165,7 @@ public class ApplicationContextTest {
     Map<String, Set<String>> graph = Map
         .of("A", Set.of("B", "C"), "B", Set.of("D", "E"), "C", new HashSet<>(), "D", Set.of("A"),
             "E", Set.of("C", "D"), "F", Set.of("G"), "G", new HashSet<>());
-    var applicationContext = new ApplicationContext();
+    var applicationContext = new ApplicationContext(DIPositiveConfig.class);
     applicationContext.checkCircularReference(graph);
   }
 
@@ -234,13 +219,26 @@ public class ApplicationContextTest {
     var applicationContext = new ApplicationContext(DINegativeConfig.class);
   }
 
-  @Test(expected = IllegalStateException.class)
-  public void testInjectObjectWhichIsNotBeanShouldThrowException() throws Exception {
-    var applicationContext = new ApplicationContext(BadInjectionConfig.class);
+  @Test
+  public void testBeanNameAwareInterface() throws Exception {
+    var applicationContext = new ApplicationContext(MyAppConfig.class);
+    DbService dbService = applicationContext.getBean("com.toxicaker.example.ex.DbService",
+        DbService.class);
+
+    Assert.assertEquals("com.toxicaker.example.ex.DbService", dbService.name);
   }
 
+  @Test
+  public void testInitializingBeanInterface() throws Exception {
+    var applicationContext = new ApplicationContext(MyAppConfig.class);
+    UserServiceImpl userService = (UserServiceImpl) applicationContext
+        .getBean("com.toxicaker.example.ex.UserServiceImpl",
+            UserService.class);
 
-  @ComponentScan("com.toxicaker.example")
+    Assert.assertEquals("eq", userService.aaa);
+  }
+
+  @ComponentScan("com.toxicaker.example.ex")
   private static class MyAppConfig {
 
     @Bean
@@ -257,12 +255,6 @@ public class ApplicationContextTest {
 
   @ComponentScan("com.toxicaker.example.di.negative")
   private static class DINegativeConfig {
-
-
-  }
-
-  @ComponentScan("com.toxicaker.example.di.badInjection")
-  private static class BadInjectionConfig {
 
 
   }

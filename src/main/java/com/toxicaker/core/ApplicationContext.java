@@ -4,6 +4,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.toxicaker.core.Component.Type;
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -46,6 +47,11 @@ public class ApplicationContext {
     scan(appConfig);
   }
 
+  @VisibleForTesting
+  protected ApplicationContext(boolean unitTest) {
+
+  }
+
   /**
    * Try to get bean from Spring container. If the bean is prototype, the container will create a
    * new instance. Else will return the same instance.
@@ -53,11 +59,14 @@ public class ApplicationContext {
   public Object getBean(String name) throws Exception {
     if (beanDefinitionPool.containsKey(name)) {
       var beanDefinition = beanDefinitionPool.get(name);
+      Object obj;
       if (beanDefinition.getType() == Type.PROTOTYPE) {
-        return createBeanWithDependencies(beanDefinition);
+        obj = createBeanWithDependencies(beanDefinition);
       } else {
-        return objectPool.get(name);
+        obj = objectPool.get(name);
       }
+      postInit(obj);
+      return obj;
     }
     throw new ClassNotFoundException("Bean " + name + " not found");
   }
@@ -74,6 +83,18 @@ public class ApplicationContext {
     } else {
       throw new IllegalArgumentException(
           "Can't not cast " + obj.getClass().getName() + " to " + requiredType.getName());
+    }
+  }
+
+  private void postInit(Object bean) throws Exception {
+    var clazz = bean.getClass();
+    if (InitializingBean.class.isAssignableFrom(clazz)) {
+      var func = clazz.getDeclaredMethod("afterPropertiesSet");
+      func.invoke(bean);
+    }
+    if (BeanNameAware.class.isAssignableFrom(clazz)) {
+      var func = clazz.getDeclaredMethod("setBeanName", String.class);
+      func.invoke(bean, clazz.getName());
     }
   }
 
@@ -204,21 +225,16 @@ public class ApplicationContext {
   Object createBeanWithDependencies(BeanDefinition beanDefinition) throws Exception {
     var res = createBean(beanDefinition);
     var clazz = beanDefinition.getClazz();
-    try {
-      var fields = clazz.getDeclaredFields();
-      for (var field : fields) {
-        field.setAccessible(true);
-        if (field.getAnnotation(Inject.class) != null) {
-          var fieldType = field.getType();
-          var bean = getBean(fieldType.getName(), fieldType);
-          field.set(res, bean);
-        }
+    var fields = clazz.getDeclaredFields();
+    for (var field : fields) {
+      field.setAccessible(true);
+      if (field.getAnnotation(Inject.class) != null) {
+        var fieldType = field.getType();
+        var bean = getBean(fieldType.getName(), fieldType);
+        field.set(res, bean);
       }
-      return res;
-    } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
-      logger.error("Failed to create object for {}", clazz.getName(), e);
-      throw e;
     }
+    return res;
   }
 
   /**
