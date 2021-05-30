@@ -214,7 +214,7 @@ public class ApplicationContext {
           field.set(res, bean);
         }
       }
-      return clazz.getDeclaredConstructor().newInstance();
+      return res;
     } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
       logger.error("Failed to create object for {}", clazz.getName(), e);
       throw e;
