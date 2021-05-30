@@ -5,7 +5,10 @@ import com.toxicaker.example.UserService;
 import com.toxicaker.example.UserServiceImpl;
 import com.toxicaker.unittest.TestFile;
 import java.io.File;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -111,6 +114,65 @@ public class ApplicationContextTest {
     Assert.assertNotNull(bean1);
     Assert.assertNotNull(bean2);
     Assert.assertEquals(bean1, bean2);
+  }
+
+  @Test
+  public void testCheckCircularReferencePositiveTest1() throws Exception {
+    Map<String, Set<String>> graph = Map.of("A", new HashSet<>());
+    var applicationContext = new ApplicationContext();
+    applicationContext.checkCircularReference(graph);
+  }
+
+  @Test
+  public void testCheckCircularReferencePositiveTest2() throws Exception {
+    Map<String, Set<String>> graph = Map
+        .of("A", Set.of("B", "C"), "B", Set.of("D", "E"), "C", new HashSet<>(), "D", new HashSet<>(),
+            "E", new HashSet<>());
+    var applicationContext = new ApplicationContext();
+    applicationContext.checkCircularReference(graph);
+  }
+
+  @Test
+  public void testCheckCircularReferencePositiveTest3() throws Exception {
+    Map<String, Set<String>> graph = Map
+        .of("A", Set.of("B", "C"), "B", Set.of("D", "E"), "C", new HashSet<>(), "D", new HashSet<>(),
+            "E", Set.of("C", "D"));
+    var applicationContext = new ApplicationContext();
+    applicationContext.checkCircularReference(graph);
+  }
+
+  @Test
+  public void testCheckCircularReferencePositiveTest4() throws Exception {
+    Map<String, Set<String>> graph = Map
+        .of("A", Set.of("B", "C"), "B", Set.of("D", "E"), "C", new HashSet<>(), "D", new HashSet<>(),
+            "E", Set.of("C", "D"), "F", Set.of("G"), "G", new HashSet<>());
+    var applicationContext = new ApplicationContext();
+    applicationContext.checkCircularReference(graph);
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void testCheckCircularReferenceNegativeTest1() throws Exception {
+    Map<String, Set<String>> graph = Map
+        .of("A", Set.of("B", "C"), "B", Set.of("D", "E"), "C", new HashSet<>(), "D", Set.of("A"),
+            "E", new HashSet<>());
+    var applicationContext = new ApplicationContext();
+    applicationContext.checkCircularReference(graph);
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void testCheckCircularReferenceNegativeTest2() throws Exception {
+    Map<String, Set<String>> graph = Map.of("A", Set.of("A"));
+    var applicationContext = new ApplicationContext();
+    applicationContext.checkCircularReference(graph);
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void testCheckCircularReferenceNegativeTest3() throws Exception {
+    Map<String, Set<String>> graph = Map
+        .of("A", Set.of("B", "C"), "B", Set.of("D", "E"), "C", new HashSet<>(), "D", Set.of("A"),
+            "E", Set.of("C", "D"), "F", Set.of("G"), "G", new HashSet<>());
+    var applicationContext = new ApplicationContext();
+    applicationContext.checkCircularReference(graph);
   }
 
   @ComponentScan("com.toxicaker.example")

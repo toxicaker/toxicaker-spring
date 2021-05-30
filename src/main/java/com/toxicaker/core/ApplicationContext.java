@@ -6,10 +6,16 @@ import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Queue;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +54,7 @@ public class ApplicationContext {
     if (beanDefinitionPool.containsKey(name)) {
       var beanDefinition = beanDefinitionPool.get(name);
       if (beanDefinition.getType() == Type.PROTOTYPE) {
-        return createBean(beanDefinition);
+        return createBeanWithDependencies(beanDefinition);
       } else {
         return objectPool.get(name);
       }
@@ -139,9 +145,47 @@ public class ApplicationContext {
         logger.warn("Class {} not found", classPath, e);
       }
     }
+    // Initialize beans. Put the objects into objectPool.
     for (var name : beanDefinitionPool.keySet()) {
       var beanDefinition = beanDefinitionPool.get(name);
       objectPool.put(name, createBean(beanDefinition));
+    }
+    Map<String, Set<String>> graph = new HashMap<>();
+    for (var name : beanDefinitionPool.keySet()) {
+      var beanDefinition = beanDefinitionPool.get(name);
+      var clazz = beanDefinition.getClazz();
+      var fields = clazz.getDeclaredFields();
+      graph.put(name, new HashSet<>());
+      for (var field : fields) {
+        field.setAccessible(true);
+        if (field.getAnnotation(Inject.class) != null) {
+          Class<?> fieldType = field.getType();
+          if (!beanDefinitionPool.containsKey(fieldType.getName())) {
+            throw new IllegalStateException(
+                "Bean " + name + " has dependency " + fieldType.getName() + " which is not bean");
+          } else {
+            var set = graph.getOrDefault(name, new HashSet<>());
+            set.add(fieldType.getName());
+            graph.put(name, set);
+          }
+        }
+      }
+    }
+    // Check circular references
+    checkCircularReference(graph);
+    // Inject dependencies
+    for (var name : beanDefinitionPool.keySet()) {
+      var beanDefinition = beanDefinitionPool.get(name);
+      var clazz = beanDefinition.getClazz();
+      var fields = clazz.getDeclaredFields();
+      for (var field : fields) {
+        field.setAccessible(true);
+        if (field.getAnnotation(Inject.class) != null) {
+          var fieldType = field.getType();
+          var bean = getBean(fieldType.getName(), fieldType);
+          field.set(objectPool.get(name), bean);
+        }
+      }
     }
   }
 
@@ -153,6 +197,86 @@ public class ApplicationContext {
     } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
       logger.error("Failed to create object for {}", clazz.getName(), e);
       throw e;
+    }
+  }
+
+  @VisibleForTesting
+  Object createBeanWithDependencies(BeanDefinition beanDefinition) throws Exception {
+    var res = createBean(beanDefinition);
+    var clazz = beanDefinition.getClazz();
+    try {
+      var fields = clazz.getDeclaredFields();
+      for (var field : fields) {
+        field.setAccessible(true);
+        if (field.getAnnotation(Inject.class) != null) {
+          var fieldType = field.getType();
+          var bean = getBean(fieldType.getName(), fieldType);
+          field.set(res, bean);
+        }
+      }
+      return clazz.getDeclaredConstructor().newInstance();
+    } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
+      logger.error("Failed to create object for {}", clazz.getName(), e);
+      throw e;
+    }
+  }
+
+  /**
+   * Check if there is circular referencing probleam
+   */
+  @VisibleForTesting
+  void checkCircularReference(Map<String, Set<String>> graph) {
+    Map<String, Set<String>> parents = new HashMap<>();
+    LinkedList<Pair> degrees = new LinkedList<>();
+    for (var name : graph.keySet()) {
+      parents.put(name, new HashSet<>());
+    }
+    for (var parent : graph.keySet()) {
+      var children = graph.get(parent);
+      for (var child : children) {
+        var set = parents.getOrDefault(child, new HashSet<>());
+        set.add(parent);
+        parents.put(child, set);
+      }
+    }
+    for (var name : graph.keySet()) {
+      degrees.add(new Pair(graph.get(name).size(), name));
+    }
+    degrees.sort(Comparator.comparing(p -> p.degree));
+    if (!checkCircularReferenceHelper(degrees, parents)) {
+      throw new IllegalStateException("Circular references");
+    }
+  }
+
+  private boolean checkCircularReferenceHelper(LinkedList<Pair> degrees,
+      Map<String, Set<String>> parents) {
+    if (degrees.isEmpty()) {
+      return true;
+    } else {
+      var first = degrees.poll();
+      if (first.degree != 0) {
+        return false;
+      } else {
+        for (int i = 0; i < degrees.size(); i++) {
+          var pair = degrees.get(i);
+          if (parents.getOrDefault(first.name, new HashSet<>()).contains(pair.name)) {
+            pair.degree--;
+          }
+        }
+        degrees.sort(Comparator.comparing(p -> p.degree));
+        return checkCircularReferenceHelper(degrees, parents);
+      }
+    }
+  }
+
+  private static class Pair {
+
+    public int degree;
+    public String name;
+
+    public Pair(int degree, String name) {
+      this.degree = degree;
+      this.name = name;
     }
   }
 
