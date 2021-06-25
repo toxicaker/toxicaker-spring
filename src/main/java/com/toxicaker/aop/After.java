@@ -1,9 +1,10 @@
-package com.toxicaker.core;
+package com.toxicaker.aop;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Aspect {
+public @interface After {
 
+  String methodName();
 }

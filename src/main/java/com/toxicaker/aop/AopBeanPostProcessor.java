@@ -1,5 +1,6 @@
-package com.toxicaker.core;
+package com.toxicaker.aop;
 
+import com.toxicaker.core.BeanPostProcessor;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.HashSet;
