@@ -81,14 +81,16 @@ public class AopBeanPostProcessor implements BeanPostProcessor {
     @Override
     public Object intercept(Object obj, Method method, Object[] args, MethodProxy proxy)
         throws Throwable {
+      int idx = obj.getClass().getName().indexOf("$");
+      String funcName = obj.getClass().getName().substring(0, idx) + "." + method.getName();
       // before
-      var beforeMethods = beforeFuncMap.getOrDefault(method.getName(), new HashSet<>());
+      var beforeMethods = beforeFuncMap.getOrDefault(funcName, new HashSet<>());
       for (var m : beforeMethods) {
         m.invoke(beanMap.get(m));
       }
       Object result = method.invoke(target, args);
       // after
-      var afterMethods = afterFuncMap.getOrDefault(method.getName(), new HashSet<>());
+      var afterMethods = afterFuncMap.getOrDefault(funcName, new HashSet<>());
       for (var m : afterMethods) {
         m.invoke(beanMap.get(m));
       }

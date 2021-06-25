@@ -6,22 +6,22 @@ import com.toxicaker.core.Component;
 @Component
 public class UserServiceAspect {
 
-  @Before("testMethod")
+  @Before("com.toxicaker.aop.AopService.testMethod")
   void beforeTestMethod() {
     System.out.println("Before method call testMethod");
   }
 
-  @After("testMethod")
+  @After("com.toxicaker.aop.AopService.testMethod")
   void afterTestMethod() {
     System.out.println("After method call testMethod");
   }
 
-  @Before("testInterfaceMethod")
+  @Before("com.toxicaker.aop.AopInterfaceServiceImpl.testInterfaceMethod")
   void beforeFunc() {
     System.out.println("Before method call testInterfaceMethod");
   }
 
-  @After("testInterfaceMethod")
+  @After("com.toxicaker.aop.AopInterfaceServiceImpl.testInterfaceMethod")
   void afterFunc() {
     System.out.println("After method call testInterfaceMethod");
   }
