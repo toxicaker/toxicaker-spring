@@ -161,16 +161,8 @@ public class ApplicationContext {
     for (var classPath : javaPaths) {
       try {
         var clazz = classLoader.loadClass(classPath);
-        var componentAnnotation = clazz.getAnnotation(Component.class);
-        if (componentAnnotation != null) {
-          var beanName = "".equals(componentAnnotation.name()) ? clazz.getName()
-              : componentAnnotation.name();
-          var beanType = componentAnnotation.type();
-          if (beanDefinitionPool.containsKey(beanName)) {
-            throw new IllegalStateException("Duplicate bean name " + beanName);
-          }
-          beanDefinitionPool.put(beanName, new BeanDefinition(clazz, beanName, beanType));
-        }
+        registerComponents(clazz);
+        registerAspects(clazz);
       } catch (ClassNotFoundException e) {
         logger.warn("Class {} not found", classPath, e);
       }
@@ -297,8 +289,7 @@ public class ApplicationContext {
       if (first.degree != 0) {
         return false;
       } else {
-        for (int i = 0; i < degrees.size(); i++) {
-          var pair = degrees.get(i);
+        for (Pair pair : degrees) {
           if (parents.getOrDefault(first.name, new HashSet<>()).contains(pair.name)) {
             pair.degree--;
           }
@@ -306,6 +297,32 @@ public class ApplicationContext {
         degrees.sort(Comparator.comparing(p -> p.degree));
         return checkCircularReferenceHelper(degrees, parents);
       }
+    }
+  }
+
+  private void registerComponents(Class<?> clazz) {
+    var componentAnnotation = clazz.getAnnotation(Component.class);
+    if (componentAnnotation != null) {
+      var beanName = "".equals(componentAnnotation.name()) ? clazz.getName()
+          : componentAnnotation.name();
+      var beanType = componentAnnotation.type();
+      if (beanDefinitionPool.containsKey(beanName)) {
+        throw new IllegalStateException("Duplicate bean name " + beanName);
+      }
+      beanDefinitionPool.put(beanName, new BeanDefinition(clazz, beanName, beanType));
+    }
+  }
+
+  private void registerAspects(Class<?> clazz) {
+    var componentAnnotation = clazz.getAnnotation(Aspect.class);
+    if (componentAnnotation != null) {
+      var beanName = "".equals(componentAnnotation.name()) ? clazz.getName()
+          : componentAnnotation.name();
+      var beanType = Type.SINGLETON;
+      if (beanDefinitionPool.containsKey(beanName)) {
+        throw new IllegalStateException("Duplicate bean name " + beanName);
+      }
+      beanDefinitionPool.put(beanName, new BeanDefinition(clazz, beanName, beanType));
     }
   }
 

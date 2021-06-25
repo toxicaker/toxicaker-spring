@@ -1,9 +1,6 @@
 package com.toxicaker.aop;
 
-import com.toxicaker.core.Component;
-
 @Aspect
-@Component
 public class UserServiceAspect {
 
   @Before("com.toxicaker.aop.AopService.testMethod")

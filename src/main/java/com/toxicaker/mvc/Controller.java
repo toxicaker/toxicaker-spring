@@ -1,11 +1,10 @@
-package com.toxicaker.aop;
+package com.toxicaker.mvc;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Aspect {
+public @interface Controller {
 
-  String name() default "";
-
+  String name();
 }
