@@ -34,6 +34,7 @@ public class ApplicationContext {
 
   private final Map<String, Object> objectPool = new HashMap<>();
   private final Map<String, BeanDefinition> beanDefinitionPool = new HashMap<>();
+  private final List<BeanPostProcessor> processors = new ArrayList<>();
 
   private static final String ROOT_PACKAGE = "com.toxicaker";
 
@@ -65,7 +66,13 @@ public class ApplicationContext {
       } else {
         obj = objectPool.get(name);
       }
+      for (var p : processors) {
+        obj = p.beanPostProcessorBeforeInit(obj, name);
+      }
       postInit(obj);
+      for (var p : processors) {
+        obj = p.beanPostProcessorAfterInit(obj, name);
+      }
       return obj;
     }
     throw new ClassNotFoundException("Bean " + name + " not found");
@@ -208,6 +215,13 @@ public class ApplicationContext {
         }
       }
     }
+    // BeanPostProcessors
+    for (var beanDef : beanDefinitionPool.values()) {
+      if (BeanPostProcessor.class.isAssignableFrom(beanDef.getClazz())) {
+        processors.add(getBean(beanDef.getName(), BeanPostProcessor.class));
+      }
+    }
+    processors.sort(Comparator.comparingInt(BeanPostProcessor::order));
   }
 
   @VisibleForTesting

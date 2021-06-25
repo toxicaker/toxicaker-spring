@@ -1,9 +1,5 @@
 package com.toxicaker.core;
 
-import com.toxicaker.example.ex.AuthService;
-import com.toxicaker.example.ex.DbService;
-import com.toxicaker.example.ex.UserService;
-import com.toxicaker.example.ex.UserServiceImpl;
 import com.toxicaker.example.di.positive.A;
 import com.toxicaker.example.di.positive.B;
 import com.toxicaker.example.di.positive.C;
@@ -11,7 +7,9 @@ import com.toxicaker.example.di.positive.D;
 import com.toxicaker.example.di.positive.E;
 import com.toxicaker.example.di.positive.F;
 import com.toxicaker.example.di.positive.G;
-import com.toxicaker.unittest.TestFile;
+import com.toxicaker.example.ex.DbService;
+import com.toxicaker.example.ex.UserService;
+import com.toxicaker.example.ex.UserServiceImpl;
 import java.io.File;
 import java.util.HashSet;
 import java.util.Map;
