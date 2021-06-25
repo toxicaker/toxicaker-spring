@@ -1,6 +1,7 @@
 package com.toxicaker.core;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.toxicaker.aop.AopBeanPostProcessor;
 import com.toxicaker.core.Component.Type;
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
@@ -222,6 +223,14 @@ public class ApplicationContext {
       }
     }
     processors.sort(Comparator.comparingInt(BeanPostProcessor::order));
+    // AOP enhancement
+    for (var p : processors) {
+      if (p instanceof AopBeanPostProcessor) {
+        for (var def : beanDefinitionPool.values()) {
+          ((AopBeanPostProcessor) p).scan(def.getClazz());
+        }
+      }
+    }
   }
 
   @VisibleForTesting

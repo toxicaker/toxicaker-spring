@@ -1,6 +1,7 @@
 package com.toxicaker.aop;
 
 import com.toxicaker.core.BeanPostProcessor;
+import com.toxicaker.core.Component;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -10,6 +11,13 @@ import net.sf.cglib.proxy.Enhancer;
 import net.sf.cglib.proxy.MethodInterceptor;
 import net.sf.cglib.proxy.MethodProxy;
 
+/**
+ * AOP processor.
+ * AopBeanPostProcessor implements BeanPostProcessor which will be called when beans are creating. I
+ * will firstly scan all the beans that have @Aspect annotation. Then pack all the "before methods"
+ * and "after methods" into function maps. ProxyFactory utilized CGLIB dynamic proxy.
+ */
+@Component
 public class AopBeanPostProcessor implements BeanPostProcessor {
 
   // function name -> proxy functions
@@ -17,27 +25,8 @@ public class AopBeanPostProcessor implements BeanPostProcessor {
   private final Map<String, Set<Method>> afterFuncMap = new HashMap<>();
   private final Map<Method, Object> beanMap = new HashMap<>();
 
-
   @Override
   public Object beanPostProcessorBeforeInit(Object bean, String beanName) {
-    var clazz = bean.getClass();
-    if (clazz.getAnnotation(Aspect.class) != null) {
-      var methods = clazz.getMethods();
-      for (var m : methods) {
-        var before = m.getAnnotation(Before.class);
-        if (before != null) {
-          Set<Method> beforeMethods = beforeFuncMap.getOrDefault(before.methodName(), new HashSet<>());
-          beforeMethods.add(m);
-          beforeFuncMap.put(before.methodName(), beforeMethods);
-        }
-        var after = m.getAnnotation(After.class);
-        if (after != null) {
-          Set<Method> afterMethods = afterFuncMap.getOrDefault(after.methodName(), new HashSet<>());
-          afterMethods.add(m);
-          afterFuncMap.put(after.methodName(), afterMethods);
-        }
-      }
-    }
     return bean;
   }
 
@@ -50,6 +39,27 @@ public class AopBeanPostProcessor implements BeanPostProcessor {
   @Override
   public int order() {
     return 0;
+  }
+
+  public void scan(Class<?> clazz) {
+    if (clazz.getAnnotation(Aspect.class) != null) {
+      var methods = clazz.getMethods();
+      for (var m : methods) {
+        var before = m.getAnnotation(Before.class);
+        if (before != null) {
+          Set<Method> beforeMethods = beforeFuncMap
+              .getOrDefault(before.methodName(), new HashSet<>());
+          beforeMethods.add(m);
+          beforeFuncMap.put(before.methodName(), beforeMethods);
+        }
+        var after = m.getAnnotation(After.class);
+        if (after != null) {
+          Set<Method> afterMethods = afterFuncMap.getOrDefault(after.methodName(), new HashSet<>());
+          afterMethods.add(m);
+          afterFuncMap.put(after.methodName(), afterMethods);
+        }
+      }
+    }
   }
 
   private class ProxyFactory implements MethodInterceptor {
