@@ -7,12 +7,22 @@ import com.toxicaker.core.Component;
 public class UserServiceAspect {
 
   @Before("testMethod")
-  void beforeFunc() {
-    System.out.println("Before method call");
+  void beforeTestMethod() {
+    System.out.println("Before method call testMethod");
   }
 
   @After("testMethod")
+  void afterTestMethod() {
+    System.out.println("After method call testMethod");
+  }
+
+  @Before("testInterfaceMethod")
+  void beforeFunc() {
+    System.out.println("Before method call testInterfaceMethod");
+  }
+
+  @After("testInterfaceMethod")
   void afterFunc() {
-    System.out.println("After method call");
+    System.out.println("After method call testInterfaceMethod");
   }
 }

@@ -14,6 +14,13 @@ public class AopBeanPostProcessorTest {
     bean.testMethod();
   }
 
+  @Test
+  public void testAOPInterface() throws Exception {
+    var applicationContext = new ApplicationContext(MyAppConfig.class);
+    AopInterfaceService bean = applicationContext.getBean("com.toxicaker.aop.AopInterfaceServiceImpl", AopInterfaceService.class);
+    bean.testInterfaceMethod();
+  }
+
   @ComponentScan("com.toxicaker.aop")
   private static class MyAppConfig {
 
