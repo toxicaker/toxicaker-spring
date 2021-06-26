@@ -6,7 +6,6 @@ import com.toxicaker.aop.Aspect;
 import com.toxicaker.core.Component.Type;
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -16,9 +15,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Queue;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,18 +92,6 @@ public class ApplicationContext {
     }
   }
 
-  private void postInit(Object bean) throws Exception {
-    var clazz = bean.getClass();
-    if (InitializingBean.class.isAssignableFrom(clazz)) {
-      var func = clazz.getDeclaredMethod("afterPropertiesSet");
-      func.invoke(bean);
-    }
-    if (BeanNameAware.class.isAssignableFrom(clazz)) {
-      var func = clazz.getDeclaredMethod("setBeanName", String.class);
-      func.invoke(bean, clazz.getName());
-    }
-  }
-
   public Map<String, BeanDefinition> getBeanDefinitionPool() {
     return new HashMap<>(beanDefinitionPool);
   }
@@ -172,6 +157,7 @@ public class ApplicationContext {
       var beanDefinition = beanDefinitionPool.get(name);
       objectPool.put(name, createBean(beanDefinition));
     }
+    // DI
     Map<String, Set<String>> graph = new HashMap<>();
     for (var name : beanDefinitionPool.keySet()) {
       var beanDefinition = beanDefinitionPool.get(name);
@@ -277,6 +263,18 @@ public class ApplicationContext {
     degrees.sort(Comparator.comparing(p -> p.degree));
     if (!checkCircularReferenceHelper(degrees, parents)) {
       throw new IllegalStateException("Circular references");
+    }
+  }
+
+  private void postInit(Object bean) throws Exception {
+    var clazz = bean.getClass();
+    if (InitializingBean.class.isAssignableFrom(clazz)) {
+      var func = clazz.getDeclaredMethod("afterPropertiesSet");
+      func.invoke(bean);
+    }
+    if (BeanNameAware.class.isAssignableFrom(clazz)) {
+      var func = clazz.getDeclaredMethod("setBeanName", String.class);
+      func.invoke(bean, clazz.getName());
     }
   }
 
