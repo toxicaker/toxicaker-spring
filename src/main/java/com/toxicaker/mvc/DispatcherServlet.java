@@ -81,7 +81,17 @@ public class DispatcherServlet extends HttpServlet {
     }
     String output = reqMethod + ":" + reqUrl + " not found.";
     if (controllerBeanDefinition != null) {
-      var result = controllerBeanDefinition.getMethod().invoke(controllerBeanDefinition.getBean());
+      Object[] args;
+      try {
+        args = checkRequestParam(controllerBeanDefinition, req);
+      } catch (IllegalArgumentException ex) {
+        var pw = resp.getWriter();
+        pw.write(ex.getMessage());
+        pw.flush();
+        return;
+      }
+      var result = controllerBeanDefinition.getMethod()
+          .invoke(controllerBeanDefinition.getBean(), args);
       if (result instanceof String) {
         output = (String) result;
       } else {
@@ -91,5 +101,36 @@ public class DispatcherServlet extends HttpServlet {
     var pw = resp.getWriter();
     pw.write(output);
     pw.flush();
+  }
+
+  private Object[] checkRequestParam(ControllerBeanDefinition controllerBeanDefinition,
+      HttpServletRequest req) {
+    var method = controllerBeanDefinition.getMethod();
+    Object[] args = new String[method.getParameters().length];
+
+    for (int i = 0; i < method.getParameters().length; i++) {
+      var param = method.getParameters()[i];
+      var requestParam = param.getAnnotation(RequestParam.class);
+      if (requestParam != null) {
+        String paramName = requestParam.value();
+        var val = req.getParameter(paramName);
+        if (requestParam.required()) {
+          if (val == null) {
+            throw new IllegalArgumentException("Missing parameter " + paramName);
+          } else {
+            args[i] = val;
+          }
+        } else {
+          if (val == null) {
+            args[i] = requestParam.defaultValue();
+          } else {
+            args[i] = val;
+          }
+        }
+      } else {
+        args[i] = null;
+      }
+    }
+    return args;
   }
 }

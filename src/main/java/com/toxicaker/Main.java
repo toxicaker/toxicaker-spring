@@ -11,7 +11,6 @@ public class Main {
     var tomcat = new Tomcat();
     tomcat.setPort(Integer.getInteger("port", 9000));
     tomcat.getConnector();
-    // 创建webapp:
     var ctx = tomcat.addWebapp("", new File("src/main/webapp").getAbsolutePath());
     var resources = new StandardRoot(ctx);
     resources.addPreResources(
