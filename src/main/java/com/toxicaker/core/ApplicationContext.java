@@ -4,8 +4,12 @@ import com.google.common.annotations.VisibleForTesting;
 import com.toxicaker.aop.AopBeanPostProcessor;
 import com.toxicaker.aop.Aspect;
 import com.toxicaker.core.Component.Type;
+import com.toxicaker.mvc.Controller;
+import com.toxicaker.mvc.ControllerBeanDefinition;
+import com.toxicaker.mvc.RequestMapping;
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -101,6 +105,46 @@ public class ApplicationContext {
   }
 
   /**
+   * This method scans all "controller" beans and pack up a url mapping:
+   *
+   * @return map [url -> [http method -> method]]
+   */
+  public Map<String, Map<RequestMapping.HTTP, ControllerBeanDefinition>> getControllerMappings()
+      throws Exception {
+    Map<String, Map<RequestMapping.HTTP, ControllerBeanDefinition>> mapping = new HashMap<>();
+    Set<String> sanityCheck = new HashSet<>();
+    for (var def : beanDefinitionPool.values()) {
+      var clazz = def.getClazz();
+      var controller = clazz.getDeclaredAnnotation(Controller.class);
+      if (controller != null) {
+        for (var method : clazz.getDeclaredMethods()) {
+          method.setAccessible(true);
+          var reqMapping = method.getDeclaredAnnotation(RequestMapping.class);
+          if (reqMapping != null) {
+            var url = controller.value() + reqMapping.value();
+            var httpMethod = reqMapping.method();
+            var check = httpMethod + ":" + url;
+            if (sanityCheck.contains(check)) {
+              throw new IllegalStateException(
+                  "URL " + url + " + " + httpMethod.name() + " already exists");
+            }
+            sanityCheck.add(check);
+            var httpMethodMapping = mapping.getOrDefault(url, new HashMap<>());
+            var controllerBeanDefinition = new ControllerBeanDefinition();
+            controllerBeanDefinition.setUrl(url);
+            controllerBeanDefinition.setHttpMethod(httpMethod);
+            controllerBeanDefinition.setMethod(method);
+            controllerBeanDefinition.setBean(getBean(def.getName()));
+            httpMethodMapping.put(httpMethod, controllerBeanDefinition);
+            mapping.put(url, httpMethodMapping);
+          }
+        }
+      }
+    }
+    return mapping;
+  }
+
+  /**
    * The function reads "appConfig", scans all the Java files(.class) with @Component annotation,
    * creates beans and bean definitions, saves the beans into objectPool.
    * <p>
@@ -130,7 +174,7 @@ public class ApplicationContext {
       throw new IllegalStateException("Package " + scanPath + " doesn't exist");
     }
     var file = new File(url.getPath());
-    // result format: List<String>: ["com.toxicaker.abc.UserService", "com.toxicaker.def.AuthService"]
+    // result format: List<String>: ["com.toxicaker.abc.UserService", "com.toxica±ker.def.AuthService"]
     var javaPaths = listFiles(file).stream().filter(f -> {
       var paths = f.getAbsolutePath().split("\\.");
       var ext = paths[paths.length - 1];
@@ -148,6 +192,7 @@ public class ApplicationContext {
         var clazz = classLoader.loadClass(classPath);
         registerComponents(clazz);
         registerAspects(clazz);
+        registerControllers(clazz);
       } catch (ClassNotFoundException e) {
         logger.warn("Class {} not found", classPath, e);
       }
@@ -316,6 +361,18 @@ public class ApplicationContext {
     if (componentAnnotation != null) {
       var beanName = "".equals(componentAnnotation.name()) ? clazz.getName()
           : componentAnnotation.name();
+      var beanType = Type.SINGLETON;
+      if (beanDefinitionPool.containsKey(beanName)) {
+        throw new IllegalStateException("Duplicate bean name " + beanName);
+      }
+      beanDefinitionPool.put(beanName, new BeanDefinition(clazz, beanName, beanType));
+    }
+  }
+
+  private void registerControllers(Class<?> clazz) {
+    var componentAnnotation = clazz.getAnnotation(Controller.class);
+    if (componentAnnotation != null) {
+      var beanName = clazz.getName();
       var beanType = Type.SINGLETON;
       if (beanDefinitionPool.containsKey(beanName)) {
         throw new IllegalStateException("Duplicate bean name " + beanName);
