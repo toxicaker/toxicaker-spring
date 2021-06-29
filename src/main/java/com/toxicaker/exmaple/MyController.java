@@ -8,7 +8,7 @@ import com.toxicaker.mvc.RequestMapping.HTTP;
 public class MyController {
 
   @RequestMapping(value = "/abc", method = HTTP.GET)
-  public String getUser() {
-    return "userId: " + "abc";
+  public TestJsonObject getUser() {
+    return new TestJsonObject("userId: " + "abc");
   }
 }
