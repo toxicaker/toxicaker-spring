@@ -10,6 +10,12 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+/**
+ * The entrance of all the requests. DispatcherServlet will dispatch the request to different
+ * controllers based one request URL and request HTTP method. When the web server is started, it
+ * will firstly load ApplicationContext to create beans. Then get all the controller methods based
+ * on reflection.
+ */
 @WebServlet(urlPatterns = "/")
 public class DispatcherServlet extends HttpServlet {
 
